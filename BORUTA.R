@@ -14,7 +14,6 @@ convert_to_individual_list <- function(simulated_data_list) {
   return(individual_simulation_list)
 }
 
-# Assuming simulated_data_list_repeat_50 is your list of simulations (with all individuals in one dataframe per simulation)
 BORUTA_sim_repeat10 <- convert_to_individual_list(simulated_data_list_10)
 
 # Function to reorder the list of individuals numerically
@@ -25,7 +24,7 @@ reorder_individual_list <- function(individual_simulation_list) {
   })
 }
 
-# Apply the reordering function to BORUTA_sim_repeat_70
+# Apply the reordering function
 BORUTA_sim_repeat10 <- reorder_individual_list(BORUTA_sim_repeat10)
 
 #### Running BORUTA using parallel cores ####
@@ -75,7 +74,6 @@ apply_boruta_parallel <- function(BORUTA_sim_repeat10) {
   return(BORUTA_results_simulations)
 }
 
-# Assuming BORUTA_sim_repeat_70 is already created using convert_to_individual_list
 BORUTA_results_all <- apply_boruta_parallel(BORUTA_sim_repeat10)
 
 #### Extracting BORUTA results ####
@@ -129,7 +127,6 @@ generate_confirmed_results <- function(BORUTA_results_all) {
   return(confirmed_results_simulations)
 }
 
-# Example usage with BORUTA_results_all_50
 BORUTA_Confirmed_all <- generate_confirmed_results(BORUTA_results_all)
 
 # Calculate majority confirmed 
@@ -160,8 +157,6 @@ calculate_majority_decision_per_individual <- function(confirmed_results_simulat
   return(majority_decisions)
 }
 
-# Example usage
-# Assuming `BORUTA_Confirmed_all_70time` contains results for 100 simulations
 majority_decisions_confirmed <- calculate_majority_decision_per_individual(BORUTA_Confirmed_all)
 
 # Calculate MeanIMP 
