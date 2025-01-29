@@ -143,7 +143,7 @@ cat(sprintf("Total execution time for all scripts: %s seconds\n", total_executio
 # Move all batches into one folder and numerically name each sim (e.g., Sim1, Sim2, etc.)
 library(tidyr)
 library(dplyr)
-# STEP 1 - Process Sim folders 
+# STEP 1 - Process Sim folders  
 # Define the parent directory containing the batch folder
 parent_directory <- "C:/Users/WillLi/Documents/mlvar simulation/output_directory_GIMME"  # Replace with your actual path
 
