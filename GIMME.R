@@ -211,7 +211,7 @@ filtered_paths_per_individual <- all_paths %>%
   semi_join(majority_paths_per_individual, by = c("ID", "rhs"))
 
 # Calculate the average beta coefficients
-average_betas_per_individual <- filtered_paths_per_individual %>%
+average_paths_per_individual <- filtered_paths_per_individual %>%
   group_by(ID, rhs) %>%
   summarise(
     Average_Beta = mean(beta, na.rm = TRUE),  # Calculate average beta coefficient
