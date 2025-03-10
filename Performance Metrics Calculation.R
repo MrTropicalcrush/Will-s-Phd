@@ -92,7 +92,7 @@ calculate_iarimax_performance_tstat <- function(expected_correlations, t_statist
 # Example usage
 
 # Threshold for expected importance (correlation threshold) and detected importance (t-statistic threshold)
-correlation_threshold <- 0.3 # Absolute correlation > 0.3 is considered reliabe
+correlation_threshold <- 0.2 # Absolute correlation > 0.2 is considered reliabe
 tstat_threshold <- 1.96       # Absolute t-statistic > 1.96 is considered reliable
 
 # Run the function with expected correlations and t-statistics
@@ -147,7 +147,7 @@ calculate_boruta_performance <- function(expected_correlations, boruta_decisions
 }
 
 # Example usage
-correlation_threshold <- 0.3 # Absolute correlation > 0.3 is considered reliable
+correlation_threshold <- 0.2 # Absolute correlation > 0.2 is considered reliable
 
 # Run the function with expected correlations and BORUTA decisions
 BORUTA_performance_results <- calculate_boruta_performance(
@@ -200,7 +200,7 @@ calculate_GIMME_performance <- function(expected_correlations, GIMME_decisions, 
 }
 
 # Example usage
-correlation_threshold <- 0.3 # Absolute correlation > 0.3 is considered important
+correlation_threshold <- 0.2 # Absolute correlation > 0.2 is considered important
 
 # Create dataframe with only contemporaneous paths 
 average_paths <- average_paths_per_individual[,c()] # PUT BASED ON WHICH COLUMNS REPRESENT CONTEMP VARIABLE PATHS
@@ -256,7 +256,7 @@ calculate_indsem_performance <- function(expected_correlations, indsem_decisions
 }
 
 # Example usage
-correlation_threshold <- 0.3 # Absolute correlation > 0.3 is considered important
+correlation_threshold <- 0.2 # Absolute correlation > 0.2 is considered important
 
 # Create dataframe with only contemporaneous paths 
 average_betas <- average_betas_per_individual[,c()] # PUT BASED ON WHICH COLUMNS REPRESENT CONTEMP VARIABLE PATHS
