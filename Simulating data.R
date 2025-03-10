@@ -1,3 +1,6 @@
+#####################################################
+#### Simulating linear data (based on real data) ####
+#####################################################
 #### Cleaning real data ####
 rawsimdata$pid <- match(rawsimdata$pid, unique(rawsimdata$pid))
 realdata <- Projectpingemadata
