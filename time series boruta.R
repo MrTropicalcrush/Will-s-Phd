@@ -1,47 +1,84 @@
-#### Time series BORUTA ####
-library(forecast)
+#### Running Time series Boruta on simulated data ####
+# First fit an ARIMA model and extract residuals
+# Load the parallel package
+library(parallel)
 
-# Initialize an empty list to store residuals for all simulations
-all_residuals_list <- list()
+# Set up the number of cores (use all available cores except a few for safety)
+num_cores <- detectCores() - 4
+cl <- makeCluster(num_cores)
 
-# Loop through each simulated dataset in the list (simulated_data_list_10)
-for (dataset_index in 1:length(simulated_data_list_10)) {
+# Export libraries and required variables to the cluster
+clusterEvalQ(cl, library(forecast))
+clusterExport(cl, varlist = c("simulated_data"), envir = environment())
+
+# Run in parallel across simulations
+residual_70time <- parLapply(cl, 1:length(simulated_data), function(dataset_index) {
   
-  # Initialize an empty list to store residuals for this dataset (simulation)
+  # Initialize list to store residuals per simulation
   residuals_list <- list()
   
-  # Loop through each individual (based on 'ID') in the current dataset
-  for (id in unique(simulated_data_list_10[[dataset_index]]$ID)) {
+  # Extract the current dataset (a combined dataframe of 102 individuals)
+  dataset <- simulated_data[[dataset_index]]
+  
+  # For each individual in the dataset
+  for (id in unique(dataset$ID)) {
     
-    # Filter the data for the current individual
-    individual_data <- subset(simulated_data_list_10[[dataset_index]], ID == id)
+    individual_data <- subset(dataset, ID == id)
     
-    # Empty data frame to store residuals for this individual
-    individual_residuals <- data.frame(ID = rep(id, nrow(individual_data)), time = individual_data$time)
+    # Skip if no rows
+    if (nrow(individual_data) == 0) next
     
-    # Loop through each variable (excluding 'ID' and 'time')
-    for (var in colnames(individual_data)[!colnames(individual_data) %in% c("ID", "time")]) {
-      # Fit ARIMA model (without xreg)
-      arima_model <- auto.arima(individual_data[[var]])
+    # Prepare container for this individual's residuals
+    individual_residuals <- data.frame(
+      ID = rep(id, nrow(individual_data)),
+      Time = individual_data$time
+    )
+    
+    # Variables to include (exclude meta columns)
+    vars_to_model <- setdiff(colnames(individual_data), c("ID", "time"))
+    
+    # Loop through each selected variable and fit ARIMA
+    for (var in vars_to_model) {
+      series <- individual_data[[var]]
       
-      # Extract the residuals
-      residuals <- residuals(arima_model)
+      # Check for constant or NA series
+      if (length(unique(na.omit(series))) <= 1) {
+        individual_residuals[[var]] <- rep(NA, nrow(individual_data))
+        next
+      }
       
-      # Add the residuals as a new column to the individual_residuals data frame
-      individual_residuals[[var]] <- residuals
+      # Fit ARIMA model
+      fit <- tryCatch(auto.arima(series), error = function(e) NULL)
+      
+      # Store residuals or NAs if model failed
+      if (!is.null(fit)) {
+        resids <- residuals(fit)
+        # Pad residuals if shorter (ARIMA can return 1 fewer obs due to differencing)
+        if (length(resids) < nrow(individual_data)) {
+          resids <- c(resids, rep(NA, nrow(individual_data) - length(resids)))
+        }
+        individual_residuals[[var]] <- resids
+      } else {
+        individual_residuals[[var]] <- rep(NA, nrow(individual_data))
+      }
     }
     
-    # Add the individual residuals to the residuals_list for the current dataset
-    residuals_list[[id]] <- individual_residuals
+    # Store this individual’s residuals in the list
+    residuals_list[[as.character(id)]] <- individual_residuals
   }
   
-  # Add the residuals for this dataset (simulation) to the overall list
-  all_residuals_list[[dataset_index]] <- residuals_list
-}
+  # Return residuals for the entire simulation
+  return(residuals_list)
+})
+
+# Stop the parallel cluster
+stopCluster(cl)
 
 #### Running BORUTA on residual data ####
+library(Boruta)
+library(parallel)
 # Function to apply BORUTA to each individual in simulations using parallel processing
-apply_boruta_parallel <- function(all_residuals_list) {
+apply_boruta_parallel <- function(residual_70time) {
   
   # Set up the number of cores
   num_cores <- detectCores() - 4  # Use all cores except four
@@ -49,13 +86,13 @@ apply_boruta_parallel <- function(all_residuals_list) {
   
   # Export libraries and variables to the cluster
   clusterEvalQ(cl, library(Boruta))
-  clusterExport(cl, c("all_residuals_list"))
+  clusterExport(cl, c("residual_70time"))
   
   # Define the parallel function
-  BORUTA_results_simulations <- parLapply(cl, seq_along(all_residuals_list), function(sim_index) {
+  BORUTA_results_simulations <- parLapply(cl, seq_along(residual_70time), function(sim_index) {
     
     # Access the current simulation
-    current_simulation <- all_residuals_list[[sim_index]]
+    current_simulation <- residual_70time[[sim_index]]
     num_individuals <- length(current_simulation)
     
     # Initialize a list to store Boruta results for this simulation
@@ -75,8 +112,7 @@ apply_boruta_parallel <- function(all_residuals_list) {
       }
       
       # Ensure it's a data frame and has the required columns
-      if (is.data.frame(individual_data) && all(c("depressedmood_state", "loneliness_state_pmc", 
-                                                  "socintsatisfaction_state_pmc", "responsiveness_state_pmc", 
+      if (is.data.frame(individual_data) && all(c("depressedmood_state", "loneliness_state_pmc", "socintsatisfaction_state_pmc", "responsiveness_state_pmc",
                                                   "selfdisclosure_state_pmc", "otherdisclosure_state_pmc") %in% colnames(individual_data))) {
         
         # Handle missing values (optional: remove rows with NA, or use imputation)
@@ -84,8 +120,8 @@ apply_boruta_parallel <- function(all_residuals_list) {
         
         # Apply Boruta to the individual's data
         BORUTAsim[[i]] <- Boruta(
-          depressedmood_state ~ loneliness_state_pmc + socintsatisfaction_state_pmc + responsiveness_state_pmc + 
-            selfdisclosure_state_pmc + otherdisclosure_state_pmc,  # Formula
+          depressedmood_state ~ loneliness_state_pmc + socintsatisfaction_state_pmc + responsiveness_state_pmc + selfdisclosure_state_pmc +
+            otherdisclosure_state_pmc,  # Formula
           data = individual_data, maxRuns = 500, doTrace = 3
         )
         
@@ -107,5 +143,5 @@ apply_boruta_parallel <- function(all_residuals_list) {
   return(BORUTA_results_simulations)
 }
 
-# Assuming BORUTA_sim_repeat_70 is already created using convert_to_individual_list
-BORUTA_results_residuals <- apply_boruta_parallel(all_residuals_list)
+# Run function
+tsBoruta_results <- apply_boruta_parallel(residual_70time)
