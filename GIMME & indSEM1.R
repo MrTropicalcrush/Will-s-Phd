@@ -1,4 +1,4 @@
-#### Setting up data for GIMME/indSEM ####
+### Setting up data for GIMME/indSEM ###
 # Function to restructure the data 
 transform_to_individual_lists <- function(simulations_list) {
   # Create a new list to store the transformed structure
