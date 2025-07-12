@@ -135,8 +135,8 @@ simulate_multiple_datasets <- function(VAR_fit_results, nTime = 70, nSim = 10) {
 
 # Example usage:
 # Assuming 'combined_matrices' contains fitted Phi and Sigma for 102 individuals
-nSimulations <- 10  # Number of simulations to run
-simulated_data_list_10 <- simulate_multiple_datasets(VAR_fit_results, nTime = 70, nSim = nSimulations)
+nSimulations <- 100  # Number of simulations to run
+simulated_data_list <- simulate_multiple_datasets(VAR_fit_results, nTime = 70, nSim = nSimulations)
 
 # Function to rename columns for all datasets in the list
 rename_columns_in_simulated_data <- function(simulated_data_list, new_names) {
@@ -158,4 +158,53 @@ new_column_names <- c("depressedmood_state", "loneliness_state_pmc", "socintsati
                       "responsiveness_state_pmc", "selfdisclosure_state_pmc","otherdisclosure_state_pmc","ID", "time")
 
 # Apply the renaming function to your simulated_data_list100
-simulated_data_list_10 <- rename_columns_in_simulated_data(simulated_data_list_10, new_column_names)
+simulated_data_list <- rename_columns_in_simulated_data(simulated_data_list, new_column_names)
+
+#####################################################################
+# Calculate simulated contemporaneous correlations using sigma matrix 
+library(dplyr)
+
+# Extract the Sigma matrices of each individual 
+sigma_matrices <- lapply(VAR_fit_results, function(individual_data) {
+  individual_data$sigma  # Adjust if the element name for sigma is different
+})
+
+# Function to calculate correlation between predictors and outcome for each individual based on the sigma matrix used during simulation
+validate_correlations_range <- function(sigma_matrices) {
+  # Initialize an empty list to store data for each individual
+  correlation_data <- list()
+  
+  for (id in names(sigma_matrices)) {
+    sigma_matrix <- sigma_matrices[[id]]
+    cor_matrix <- cov2cor(sigma_matrix)
+    cor_values <- cor_matrix[1, 2:6]  # Correlations of variables 2-6 with variable 1
+    
+    # Store the correlations along with the ID in a list
+    correlation_data[[id]] <- c(ID = id, cor_values)
+  }
+  
+  # Combine all individual results into a data frame
+  correlation_df <- do.call(rbind, correlation_data)
+  correlation_df <- as.data.frame(correlation_df, stringsAsFactors = FALSE)
+  
+  # Convert the correlation columns to numeric
+  correlation_df[-1] <- lapply(correlation_df[-1], as.numeric)
+  
+  # Rename the columns for clarity
+  colnames(correlation_df) <- c("ID", paste0("Correlation_with_V", 2:6))
+  
+  return(correlation_df)
+}
+
+# Example usage
+sigmacorrelations <- validate_correlations_range(sigma_matrices)
+
+# Rename columns
+sigmacorrelations <- sigmacorrelations %>%
+  rename(loneliness = Correlation_with_V2,
+         socintsatisfaction = Correlation_with_V3,
+         responsiveness = Correlation_with_V4,
+         selfdisclosure = Correlation_with_V5,
+         otherdisclosure = Correlation_with_V6)
+
+# Sigma correlations are the known contemporaneous relationships between predictors and outcome
