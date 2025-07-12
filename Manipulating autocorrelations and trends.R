@@ -115,3 +115,47 @@ print(adjusted_phi_matrices_depressedmedium)
 
 # Simulate using Simulating data.R (change VAR_fit_results to combined_matrices_depressedlow)
 # See other Github R code files for simulation code file
+
+####################################################################################################################
+#### Adding linear trend to outcome ####
+# Function to add a trend to a variable
+add_trend_to_variable <- function(data, variable_name, trend_slope_range) {
+  # Ensure the variable exists in the dataset
+  if (!variable_name %in% colnames(data)) {
+    stop(paste("Variable", variable_name, "not found in dataset."))
+  }
+  
+  # Get the number of time points
+  n_time <- nrow(data)
+  
+  # Randomly select a trend slope within the specified range
+  trend_slope <- runif(1, trend_slope_range[1], trend_slope_range[2])
+  
+  # Create the linear trend
+  linear_trend <- seq(0, trend_slope * (n_time - 1), length.out = n_time)
+  
+  # Add the trend to the specified variable
+  data[[variable_name]] <- data[[variable_name]] + linear_trend
+  
+  return(data)
+}
+
+# Define the range for the trend slope
+trend_slope_range <- c(0.7, 0.9)
+
+# Loop through each simulation in the list and apply the trend
+add_trend_to_simulations <- function(simulation_list, variable_name, trend_slope_range) {
+  # Apply the trend to each simulation
+  updated_simulations <- lapply(simulation_list, function(sim_data) {
+    add_trend_to_variable(sim_data, variable_name, trend_slope_range)
+  })
+  
+  return(updated_simulations)
+}
+
+# Apply the trend to all simulations
+simulated_100_VAR_datasets_trendlarge <- add_trend_to_simulations(
+  simulation_list = simulated_100_VAR_datasets_70time,
+  variable_name = "depressedmood_state",
+  trend_slope_range = trend_slope_range
+)
