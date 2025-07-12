@@ -10,8 +10,7 @@ transform_to_individual_lists <- function(simulations_list) {
   return(transformed_list)
 }
 
-# Assuming `your_data` is your original dataframe of lists of simulations
-transformed_data <- transform_to_individual_lists(simulated_data_list_10)
+transformed_data <- transform_to_individual_lists(simulated_data_list)
 
 # Function to reorder individuals numerically within each simulation
 reorder_individuals <- function(simulation_list) {
@@ -138,83 +137,3 @@ end_time <- Sys.time()
 # Log total execution time
 total_execution_time <- difftime(end_time, start_time, units = "secs")
 cat(sprintf("Total execution time for all scripts: %s seconds\n", total_execution_time))
-
-#### Extracting GIMME results ####
-# Move all batches into one folder and numerically name each sim (e.g., Sim1, Sim2, etc.)
-library(tidyr)
-library(dplyr)
-# STEP 1 - Process Sim folders  
-# Define the parent directory containing the batch folder
-parent_directory <- "C:/Users/WillLi/Documents/mlvar simulation/output_directory_GIMME"  # Replace with your actual path
-
-# Function to process all simulation folders
-process_simulation_folders <- function(directory) {
-  # List all subfolders in the batch directory
-  subfolders <- list.dirs(directory, recursive = FALSE)
-  
-  # Initialize a list to store results for all simulations
-  all_simulation_results <- list()
-  
-  for (subfolder in subfolders) {
-    # Construct the full path to the CSV file
-    csv_file <- file.path(subfolder, "indivPathEstimates.csv")
-    
-    # Check if the file exists (skip if missing)
-    if (file.exists(csv_file)) {
-      # Read the CSV file
-      data <- read.csv(csv_file)
-      
-      # Extract relevant paths where lhs is "depressedmood_state"
-      relevant_paths <- data %>%
-        filter(lhs == "depressedmood_state") %>%  # Filter for the desired dependent variable
-        select(ID = file, rhs, beta)  # Select relevant columns (adjust if needed)
-      
-      # Add simulation identifier
-      relevant_paths <- relevant_paths %>%
-        mutate(simulation = basename(subfolder))  # Use subfolder name as simulation ID
-      
-      # Append to results list
-      all_simulation_results[[subfolder]] <- relevant_paths
-    }
-  }
-  
-  # Combine results from all simulations into one dataframe
-  do.call(rbind, all_simulation_results)
-}
-
-# Process all folders in the batch directory
-all_paths <- process_simulation_folders(parent_directory)
-
-# STEP 2 - Calculate Path Presence for Each Individual #
-# Count the number of simulations where each path exists for each individual
-path_presence_per_individual <- all_paths %>%
-  group_by(ID, rhs) %>%
-  summarise(
-    presence_count = n_distinct(simulation),  # Count simulations where the path exists for this individual
-    total_simulations = length(unique(all_paths$simulation)),  # Total number of simulations
-    presence_proportion = presence_count / total_simulations,  # Proportion of presence
-    .groups = "drop"
-  )
-
-# Define the majority threshold
-threshold <- 0.5  # Adjust as needed
-
-# STEP 3 - Filter Paths Meeting the Majority Thresohold #
-# Filter paths for each individual meeting the threshold
-majority_paths_per_individual <- path_presence_per_individual %>%
-  filter(presence_proportion > threshold) %>%
-  select(ID, rhs)  # Keep only individual ID and path names
-
-# STEP 4 - Calculate Average Beta Coefficients for Majority Paths #
-# Filter the original data for majority paths for each individual
-filtered_paths_per_individual <- all_paths %>%
-  semi_join(majority_paths_per_individual, by = c("ID", "rhs"))
-
-# Calculate the average beta coefficients
-average_paths_per_individual <- filtered_paths_per_individual %>%
-  group_by(ID, rhs) %>%
-  summarise(
-    Average_Beta = mean(beta, na.rm = TRUE),  # Calculate average beta coefficient
-    .groups = "drop"
-  ) %>%
-  pivot_wider(names_from = rhs, values_from = Average_Beta)  # Convert to wide format
